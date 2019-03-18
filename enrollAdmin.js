@@ -40,7 +40,7 @@ Fabric_Client.newDefaultKeyValueStore({
   crypto_suite.setCryptoKeyStore(crypto_store);
   fabric_client.setCryptoSuite(crypto_suite);
   // be sure to change the http to https when the CA is running TLS enabled
-  fabric_ca_client = new Fabric_CA_Client('https://<enrollID>:<enrollSecret>@<ca_url_with_port>', null ,'<caName>', crypto_suite);
+  fabric_ca_client = new Fabric_CA_Client('https://admin:fc95f672b6@nd42778dd5be34f57ba1ba52cf21619db-org1-ca.uk05.blockchain.ibm.com:31011', null ,'org1CA', crypto_suite);
   // first check to see if the admin is already enrolled
   return fabric_client.getUserContext('admin', true);
 }).then((user_from_store) => {
@@ -52,7 +52,7 @@ Fabric_Client.newDefaultKeyValueStore({
     // need to enroll it with CA server
     return fabric_ca_client.enroll({
       enrollmentID: 'admin',
-      enrollmentSecret: '<enrollSecret>'
+      enrollmentSecret: 'fc95f672b6'
     }).then((enrollment) => {
       console.log('Successfully enrolled admin user "admin"');
       return fabric_client.createUser(

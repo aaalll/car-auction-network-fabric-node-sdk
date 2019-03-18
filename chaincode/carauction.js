@@ -73,6 +73,14 @@ let Chaincode = class {
     member3.firstName = 'Tom';
     member3.lastName = 'Werner';
 
+    let member4 = {};
+    member4.balance = 0;
+    member4.appraiser = 'true';
+    member4.firstName = 'User';
+    member4.lastName = 'Appraiser';
+
+
+
     let vehicle = {};
     vehicle.owner = 'memberA@acme.org';
 
@@ -81,11 +89,13 @@ let Chaincode = class {
     vehicleListing.description = 'Arium Nova';
     vehicleListing.listingState = 'FOR_SALE';
     vehicleListing.offers = '';
+    vehicleListing.appraiser = 'false';
     vehicleListing.vehicle = '1234';
 
     await stub.putState('memberA@acme.org', Buffer.from(JSON.stringify(member1)));
     await stub.putState('memberB@acme.org', Buffer.from(JSON.stringify(member2)));
     await stub.putState('memberC@acme.org', Buffer.from(JSON.stringify(member3)));
+    await stub.putState('memberU@acme.org', Buffer.from(JSON.stringify(member4)));
     await stub.putState('1234', Buffer.from(JSON.stringify(vehicle)));
     await stub.putState('ABCD', Buffer.from(JSON.stringify(vehicleListing)));
 
@@ -159,7 +169,8 @@ let Chaincode = class {
       description: args[2],
       listingState: args[3],
       offers: args[4],
-      vehicle: args[5]
+      vehicle: args[5],
+      appraiser: 'false',
     };
 
     await stub.putState(args[0], Buffer.from(JSON.stringify(vehicleListing)));
@@ -172,18 +183,20 @@ let Chaincode = class {
    * @param arg[1] - first name of member
    * @param arg[2] - last name of member
    * @param arg[3] - balance: amount of money in member's account
+   * @param arg[4] - user role
    * onSuccess - create and update the state with a new member  object  
    */
   async createMember(stub, args) {
     console.info('============= START : Create Car ===========');
-    if (args.length != 4) {
-      throw new Error('Incorrect number of arguments. Expecting 4');
+    if (args.length < 4 || args.length > 5) {
+      throw new Error('Incorrect number of arguments. Expecting 4 or 5');
     }
 
     var member = {
       firstName: args[1],
       lastName: args[2],
-      balance: args[3]
+      balance: args[3],
+      appraiser: args[4]||'false',
     };
 
     console.info(member);
@@ -241,9 +254,9 @@ let Chaincode = class {
       throw new Error('The bid is higher than the balance in your account!');
     }
 
-    console.info('vehicle: ');
+    console.info('makeOffer>vehicle: ',vehicle);
     console.info(util.inspect(vehicle, { showHidden: false, depth: null }));
-    console.info('offer: ');
+    console.info('makeOffer>offer: ');
     console.info(util.inspect(offer, { showHidden: false, depth: null }));
 
     //check to ensure bidder can't bid on own item
@@ -251,14 +264,22 @@ let Chaincode = class {
       throw new Error('owner cannot bid on own item!');
     }
 
-    console.info('listing response before pushing to offers: ');
-    console.info(listing);
+    //check to ensure car valued
+    if (listing.appraiser == 'false') {
+      console.info('vehicle.appraiser: ', listing);
+      throw new Error('Car not valued!');
+    }
+
+    // console.info('listing response before pushing to offers: ');
+    // console.info(listing);
     
+
     //check to see if array is null - if so, we have to create an empty one, otherwise we can just push straight to it
     if (!listing.offers) {
       console.info('there are no offers!');
       listing.offers = [];
     }
+
     listing.offers.push(offer);
 
     console.info('listing response after pushing to offers: ');
@@ -268,6 +289,65 @@ let Chaincode = class {
     await stub.putState(args[1], Buffer.from(JSON.stringify(listing)));
 
     console.info('============= END : MakeOffer method ===========');
+
+  }
+
+  /**
+   * Sate value of car
+   * @param arg[0] - listingId: reference to a listing in the state
+   * @param arg[1] - member email: reference to member which does not own vehicle
+   * onSuccess - create and update the state with a new state object  
+   */
+  async makeAppraiser(stub, args) {
+    console.info('============= START : Value Car ===========');
+    if (args.length != 2) {
+      throw new Error('Incorrect number of arguments. Expecting 2');
+    }
+
+    let listing = args[0];
+    // let listingKey = args[0];
+
+    console.info('listing: ' + listing);
+
+    //get reference to listing, to add the offer to the listing later
+    let listingAsBytes = await stub.getState(listing);
+    if (!listingAsBytes || listingAsBytes.toString().length <= 0) {
+      throw new Error('listing does not exist');
+    }
+    listing = JSON.parse(listingAsBytes);
+
+    //get reference to vehicle, to update it's owner later
+    let vehicleAsBytes = await stub.getState(listing.vehicle);
+    if (!vehicleAsBytes || vehicleAsBytes.toString().length <= 0) {
+      throw new Error('vehicle does not exist');
+    }
+
+    let vehicle = JSON.parse(vehicleAsBytes);
+
+    //get reference to member to ensure thats exist
+    let memberAsBytes = await stub.getState(args[1]); 
+    if (!memberAsBytes || memberAsBytes.toString().length <= 0) {
+      throw new Error('member does not exist: ');
+    }
+    let member = JSON.parse(memberAsBytes);
+
+    //check permission
+    
+    if (member.appraiser != 'true') {
+      throw new Error('No access!');
+    }
+
+    console.info('set values: ');
+    listing.appraiser = 'true';
+    
+    console.info('values set');
+    await stub.putState(args[0], Buffer.from(JSON.stringify(listing)));
+
+    // await stub.putState(listing, Buffer.from(JSON.stringify(vehicle)));
+    // await stub.putState(vehicleKey, Buffer.from(JSON.stringify(vehicle)));
+
+    
+    console.info('============= END : makeAppraiser ===========');
 
   }
 

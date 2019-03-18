@@ -65,8 +65,8 @@ Fabric_Client.newDefaultKeyValueStore({
   // must send the proposal to endorsing peers
   var request = {
           chaincodeId: 'carauction',
-          fcn: 'initLedger',
-          args: [''],
+          fcn: 'makeOffer',
+          args: ['100','ABCD','memberC@acme.org'],
           chainId: 'mychannel',
           txId: tx_id
       };
